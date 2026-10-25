@@ -25,6 +25,8 @@ input[type=text]{font:inherit;padding:10px;border-radius:8px;border:1px solid va
 .chip{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--bd);border-radius:99px;padding:3px 4px 3px 12px;margin:3px 4px 3px 0}
 .chip button{padding:2px 9px;border-radius:99px}
 input[type=range]{width:100%;accent-color:var(--ac)}
+select{font:inherit;padding:8px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--fg)}
+button:disabled{opacity:.45;cursor:not-allowed}
 </style></head>
 <body><main>
 <h1>Sign gesture translator</h1>
@@ -41,7 +43,8 @@ input[type=range]{width:100%;accent-color:var(--ac)}
 <div id="best" class="mut"></div>
 <h2 style="margin-top:12px">Sentence</h2>
 <div id="sent" aria-live="polite"></div>
-<div class="row" style="margin-top:8px"><button id="speak">Speak</button><button id="clear" class="alt">Clear</button></div>
+<div class="row" style="margin-top:8px"><button id="speak">Speak</button><button id="stop" class="alt">Stop</button><button id="clear" class="alt">Clear</button></div>
+<div class="row" style="margin-top:8px"><label class="mut" for="lang">Voice</label><select id="lang"><option value="en-US">English</option><option value="ms-MY">Malay</option></select><label class="mut"><input type="checkbox" id="auto"> Speak each word automatically</label></div>
 </section>
 
 <section>
@@ -94,7 +97,7 @@ function recognize(){
  for(const k in lib)for(const ex of lib[k]){const d=dtw(q,ex);if(d<best){best=d;lab=k}}
  if(lab===null)return;
  $("best").textContent="Closest: "+lab+" ("+best.toFixed(2)+")";
- if(best<thr){$("word").textContent=lab;sentence.push(lab);$("sent").textContent=sentence.join(" ");buf=[]}
+ if(best<thr){$("word").textContent=lab;sentence.push(lab);$("sent").textContent=sentence.join(" ");buf=[];upd();if($("auto").checked)speak(lab)}
 }
 
 function tick(){
@@ -142,8 +145,22 @@ $("rec").onclick=()=>{
 };
 $("th").oninput=e=>{thr=+e.target.value;$("thv").textContent=thr.toFixed(2)};
 $("thv").textContent=thr.toFixed(2);
-$("clear").onclick=()=>{sentence=[];$("sent").textContent="";$("word").textContent="–"};
-$("speak").onclick=()=>{if(sentence.length&&window.speechSynthesis)speechSynthesis.speak(new SpeechSynthesisUtterance(sentence.join(" ")))};
+function upd(){$("speak").disabled=!sentence.length;$("clear").disabled=!sentence.length}
+function speak(txt){
+ if(!txt)return;
+ if(!window.speechSynthesis){say("This browser cannot read text aloud.");return}
+ speechSynthesis.cancel();
+ const u=new SpeechSynthesisUtterance(txt);u.lang=$("lang").value;
+ const v=speechSynthesis.getVoices().find(v=>v.lang.replace("_","-").toLowerCase().startsWith(u.lang.slice(0,2).toLowerCase()));
+ if(v)u.voice=v;
+ speechSynthesis.speak(u);
+}
+$("speak").onclick=()=>speak(sentence.join(" "));
+$("stop").onclick=()=>{if(window.speechSynthesis)speechSynthesis.cancel()};
+$("clear").onclick=()=>{if(window.speechSynthesis)speechSynthesis.cancel();sentence=[];buf=[];$("sent").textContent="";$("word").textContent="–";$("best").textContent="";upd()};
+if(!window.speechSynthesis){$("speak").hidden=$("stop").hidden=$("lang").hidden=$("auto").hidden=true}
+upd();
 renderLib();
 </script>
 </body></html>
+
